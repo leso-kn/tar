@@ -1635,7 +1635,7 @@ restore_parent_fd (struct tar_stat_info const *st)
    exit_status to failure, a clear diagnostic has been issued.  */
 
 static void
-dump_file0 (struct tar_stat_info *st, char const *name, char const *p)
+dump_file0 (struct tar_stat_info *st, char const *name, char const *p, char const *compressed_name)
 {
   union block *header;
   char type;
@@ -1657,6 +1657,11 @@ dump_file0 (struct tar_stat_info *st, char const *name, char const *p)
                  safer_name_suffix (p, false, absolute_names_option));
 
   transform_name (&st->file_name, XFORM_REGFILE);
+
+  if (compressed_name)
+  {
+    assign_string (&st->file_name, compressed_name);
+  }
 
   if (parentfd < 0 && ! top_level)
     {
@@ -1943,7 +1948,19 @@ dump_file (struct tar_stat_info *parent, char const *name,
   struct tar_stat_info st;
   tar_stat_init (&st);
   st.parent = parent;
-  dump_file0 (&st, name, fullname);
+
+  char *compressed_name = NULL;
+  if (strlen(name) > 0 && name[0] == ':')
+  {
+    // Split path
+    char *sep = strstr(name + 1, ":");
+
+    compressed_name = malloc(FILENAME_MAX);
+    compressed_name = sep + 1;
+    name++;
+    memset(sep, 0, 1);
+  }
+  dump_file0 (&st, name, fullname, compressed_name);
   if (parent && listed_incremental_option)
     update_parent_directory (parent);
   tar_stat_destroy (&st);
